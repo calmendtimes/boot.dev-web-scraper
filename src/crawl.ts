@@ -1,6 +1,65 @@
 import { JSDOM } from 'jsdom'
 
 
+export async function crawlPage(baseURL: string, currentURL: string, pages: Record<string, number> = {}) {
+    try {
+
+        console.log(`  Crawing '(${currentURL})' ... `);
+        if (new URL(baseURL).hostname !== new URL(currentURL).hostname) {
+            console.log(`  '${currentURL}' and '${baseURL}' mismatch, stopping.`);
+            return pages;
+        }
+
+        const normalizedURL = normalizeURL(currentURL)
+        if (normalizedURL in pages) {
+            pages[normalizedURL] ++;
+            console.log(`  '${normalizedURL}' already crawled, stopping.`);
+            return pages;
+        }
+        else {
+            pages[normalizedURL] = 1;
+            const html = await getHTML(currentURL) ?? "";
+            const urls = getURLsFromHTML(html, baseURL);
+
+            for (const u of urls) {
+                crawlPage(baseURL, u, pages);
+            }
+        }
+
+        return pages;
+
+    } catch (err) {
+        console.log();
+        console.log(`Error in crawlPage('${baseURL}', ${currentURL}): ${err}`);
+    }
+}
+
+
+export async function getHTML(url: string) {
+    try {
+        const response = await fetch(
+            url,
+            {
+                method: "GET",
+                mode: "cors",
+                headers: {
+                    "Content-Type": "application/json",
+                    "User-Agent": "BootCrawler/1.0"
+                },
+            },
+        );
+        if (!response.ok) console.log(`Error while fetching url('${url}'), ${response.status}: ${response.statusText}`);
+        const content_type = response.headers.get("content-type");
+        if (!content_type?.includes("text/html")) console.log(`Error while fetching url('${url}'), unexpected response content-type: '${content_type}'`);   
+
+        return response.text();
+
+    } catch (err) {
+        console.log(`Error while fetching url('${url}'): ${err}`);
+    }
+}
+
+
 type ExtractedPageData = {
     url: string, 
     h1: string, 
