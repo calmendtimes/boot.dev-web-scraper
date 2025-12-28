@@ -1,19 +1,20 @@
 import { JSDOM } from 'jsdom'
+import { log } from './log'
 
 
 export async function crawlPage(baseURL: string, currentURL: string, pages: Record<string, number> = {}) {
     try {
 
-        console.log(`  Crawing '(${currentURL})' ... `);
+        log(`  Crawing '(${currentURL})' ... `);
         if (new URL(baseURL).hostname !== new URL(currentURL).hostname) {
-            console.log(`  '${currentURL}' and '${baseURL}' mismatch, stopping.`);
+            log(`  '${currentURL}' and '${baseURL}' mismatch, stopping.`);
             return pages;
         }
 
         const normalizedURL = normalizeURL(currentURL)
         if (normalizedURL in pages) {
             pages[normalizedURL] ++;
-            console.log(`  '${normalizedURL}' already crawled, stopping.`);
+            log(`  '${normalizedURL}' already crawled, stopping.`);
             return pages;
         }
         else {
@@ -29,17 +30,18 @@ export async function crawlPage(baseURL: string, currentURL: string, pages: Reco
         return pages;
 
     } catch (err) {
-        console.log();
-        console.log(`Error in crawlPage('${baseURL}', ${currentURL}): ${err}`);
+        log();
+        log(`Error in crawlPage('${baseURL}', ${currentURL}): ${err}`);
     }
 }
 
 
-export async function getHTML(url: string) {
+export async function getHTML(url: string, signal?: AbortSignal) {
     try {
         const response = await fetch(
             url,
-            {
+            {   
+                signal,
                 method: "GET",
                 mode: "cors",
                 headers: {
@@ -48,14 +50,14 @@ export async function getHTML(url: string) {
                 },
             },
         );
-        if (!response.ok) console.log(`Error while fetching url('${url}'), ${response.status}: ${response.statusText}`);
+        if (!response.ok) log(`Error while fetching url('${url}'), ${response.status}: ${response.statusText}`);
         const content_type = response.headers.get("content-type");
-        if (!content_type?.includes("text/html")) console.log(`Error while fetching url('${url}'), unexpected response content-type: '${content_type}'`);   
+        if (!content_type?.includes("text/html")) log(`Error while fetching url('${url}'), unexpected response content-type: '${content_type}'`);   
 
         return response.text();
 
     } catch (err) {
-        console.log(`Error while fetching url('${url}'): ${err}`);
+        log(`Error while fetching url('${url}'): ${err}`);
     }
 }
 
@@ -95,7 +97,7 @@ function getJSDOM(html: string): any {
     try {
         return new JSDOM(html, { contentType: "text/html" });
     } catch (err) {
-        console.log(`Error while parsing html ${err}`);
+        log(`Error while parsing html ${err}`);
     }
 }
 
@@ -127,7 +129,7 @@ export function getURLsFromHTML(html: string, baseURL: string): string[] {
         try {
             urls.push(new URL(href, baseURL).toString());
         } catch (err) {
-            console.log(`Error while processing href ${err}`);
+            log(`Error while processing href ${err}`);
         }
     });
 
@@ -146,7 +148,7 @@ export function getImagesFromHTML(html: string, baseURL: string): string[] {
         try {
             urls.push(new URL(src, baseURL).toString());
         } catch (err) {
-            console.log(`Error while processing src url ${err}`);
+            log(`Error while processing src url ${err}`);
         }
     });
 
