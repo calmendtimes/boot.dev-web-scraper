@@ -24,7 +24,6 @@ async function crawlSiteAsync (url: string, maxConcurrency: number|undefined, ma
     log("==========================================");
     console.log(`CRAWLED ${url}`);
     log("==========================================");
-    console.log(pages);
 }
 
 

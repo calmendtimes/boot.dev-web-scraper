@@ -62,7 +62,7 @@ export async function getHTML(url: string, signal?: AbortSignal) {
 }
 
 
-type ExtractedPageData = {
+export type ExtractedPageData = {
     url: string, 
     h1: string, 
     first_paragraph: string, 

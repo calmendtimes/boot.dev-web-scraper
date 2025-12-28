@@ -1,11 +1,13 @@
 import pLimit from 'p-limit';
 import * as crawl from "./crawl"
 import { log } from './log'
+import { writeCSVReport } from "./report"
 
 export class ConcurrentCrawler {
 
     baseURL: string;
     pages: Record<string, number>;
+    pageData: Record<string, crawl.ExtractedPageData>;
     limit: Function;
     maxPages: number;
     shouldStop: boolean;
@@ -16,6 +18,7 @@ export class ConcurrentCrawler {
     constructor(baseURL: string, maxConcurrency: number = 1, maxPages: number = 1000) {
         this.baseURL = baseURL;
         this.pages = {};
+        this.pageData = {};
         this.limit = pLimit(maxConcurrency);
         this.maxPages = maxPages;
         this.shouldStop = false;
@@ -26,10 +29,11 @@ export class ConcurrentCrawler {
     public async crawl() {
         await this.crawlPage(this.baseURL);
         await Promise.all(this.allTasks);   
-        return this.pages;
+        writeCSVReport(this.pageData);
+        return this.pageData;
     }
 
-    private addPageVisit(normalizedURL: string): boolean {
+    private shouldVisitPage(normalizedURL: string): boolean {
         if (this.shouldStop) {
             return false;
         }
@@ -67,17 +71,17 @@ export class ConcurrentCrawler {
             }
 
             const normalizedURL = crawl.normalizeURL(currentURL)
-            if(this.addPageVisit(currentURL)) {
+            if(this.shouldVisitPage(currentURL)) {
                 const html = await this.getHTML(currentURL) ?? "";
-                const urls = crawl.getURLsFromHTML(html, this.baseURL);
-                
-                for (const u of urls) {
+                const page_data = crawl.extractPageData(html, currentURL);
+                this.pageData[normalizedURL] = page_data;
+
+                for (const u of page_data.outgoing_links) {
                     const p = this.crawlPage(u);
                     p.finally(() => { this.allTasks.delete(p); });
                     this.allTasks.add(p);
                 }
 
-                //await Promise.all(urls.map(u => this.crawlPage(u)));
             } else {
                 log(`  '${normalizedURL}' already crawled, stopping.`);
             }
